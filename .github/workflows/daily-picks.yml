@@ -1,0 +1,70 @@
+name: daily-picks
+
+# 每天 11:00（北京时间，UTC 03:00）跑一次；也可手动触发测试。
+on:
+  schedule:
+    - cron: "0 3 * * *"
+  workflow_dispatch:
+
+# 串行跑：上一轮没跑完时下一轮排队，不互相顶掉去重状态。
+concurrency:
+  group: daily-picks
+  cancel-in-progress: false
+
+# 回存去重状态需要写仓库。
+permissions:
+  contents: write
+
+jobs:
+  run:
+    runs-on: ubuntu-latest
+    timeout-minutes: 180
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Install dependencies
+        run: pip install -r requirements.txt
+
+      - name: Crawl and download
+        env:
+          PIXIV_REFRESH_TOKEN: ${{ secrets.PIXIV_REFRESH_TOKEN }}
+          PIXIV_DAILY_OUTPUT_DIR: ${{ github.workspace }}/data
+        run: python daily_run.py --crawl-only
+
+      - name: Verify selection
+        # 选中 0 张或报告缺失就直接失败，别静默空跑。
+        run: |
+          python -c "
+          import json, sys
+          from datetime import date
+          from pathlib import Path
+          rp = Path('data') / f'run_report_{date.today().isoformat()}.json'
+          rep = json.loads(rp.read_text(encoding='utf-8')) if rp.exists() else {}
+          print(rep)
+          sys.exit(0 if rep.get('selected') else 1)
+          "
+
+      - name: Upload to S3
+        env:
+          S3_ENDPOINT: ${{ secrets.S3_ENDPOINT }}
+          S3_REGION: ${{ secrets.S3_REGION }}
+          S3_BUCKET: ${{ secrets.S3_BUCKET }}
+          S3_ACCESS_KEY: ${{ secrets.S3_ACCESS_KEY }}
+          S3_SECRET_KEY: ${{ secrets.S3_SECRET_KEY }}
+          PIXIV_DAILY_OUTPUT_DIR: ${{ github.workspace }}/data
+        run: python daily_run.py --skip-send
+
+      - name: Persist dedupe state
+        # 只有上传成功才回存：上传失败时不推进状态，下一轮才能重试同一批。
+        # Runner 每次都是全新环境，不回存的话去重状态每天都会丢。
+        if: success()
+        run: |
+          git config user.name muse
+          git config user.email muse@localhost
+          git add -f data/dedupe_state.json
+          git diff --cached --quiet || git commit -m "chore: update dedupe state"
+          git push
