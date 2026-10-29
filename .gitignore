@@ -1,0 +1,14 @@
+# 凭据与本地运行产物禁止提交
+.env
+!.env.example
+data/
+downloads/
+output/
+*.log
+*.jsonl
+*.tar.gz
+__pycache__/
+.venv/
+.DS_Store
+top3_send_latest/
+top5_send_latest/
