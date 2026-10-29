@@ -1,0 +1,27 @@
+# Pixiv daily crawler configuration; all credentials are loaded from the project .env.
+crawler:
+  modes: [day, day_male, day_female, week, week_original, week_rookie, month]
+  r18_modes: [day_r18, week_r18]
+  limit_per_mode: 100
+  historical_min_year: 2020
+  recent_count: 6
+  historical_count: 4
+  daily_total: 10
+  normal_quota: 7
+  r18_quota: 3
+  min_bookmarks: 0
+  min_width: 1200
+  min_height: 1200
+  min_resolution: 2000000
+  aspect_ratio: [0.45, 2.2]
+  excluded_tags: [manga, comic, comics, storyboard, ugoira, 漫画, マンガ, 四格, 4コマ, 分镜, 分鏡]
+  source_weights: {day: 1.2, day_male: 1.0, day_female: 1.0, week: 1.0, week_original: 1.1, week_rookie: 0.9, month: 0.9, day_r18: 1.0, week_r18: 0.9}
+output:
+  base_dir: /opt/data/projects/pixiv-daily-crawler/data
+  normal_remote_dir: /Hermes/pixiv/
+  r18_remote_dir: /Hermes/pixiv/R-18/
+notification:
+  enabled: true
+  channel_env: QQ_CHANNEL
+  chat_id_env: QQ_CHAT_ID
+  text_only: true
