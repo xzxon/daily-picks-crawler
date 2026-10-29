@@ -24,13 +24,26 @@ def create_client():
     missing = [name for name in required if not os.getenv(name)]
     if missing:
         raise RuntimeError("missing S3 configuration: " + ",".join(missing))
+    # Optional Cloudflare bypass marker: when CF_BYPASS_TOKEN is set, it is
+    # appended to the User-Agent so a CF rule can Skip the challenge for
+    # requests carrying it. It is NOT a credential: S3 auth still relies on
+    # the access keys, and this token must never be a real key or password.
+    config_kwargs = dict(
+        signature_version="s3v4",
+        s3={"addressing_style": "path"},
+        request_checksum_calculation="when_required",
+        response_checksum_validation="when_required",
+    )
+    bypass = os.getenv("CF_BYPASS_TOKEN", "").strip()
+    if bypass:
+        config_kwargs["user_agent_extra"] = bypass
     return boto3.client(
         "s3",
         endpoint_url=os.environ["S3_ENDPOINT"].rstrip("/"),
         region_name=os.environ["S3_REGION"],
         aws_access_key_id=os.environ["S3_ACCESS_KEY"],
         aws_secret_access_key=os.environ["S3_SECRET_KEY"],
-        config=Config(signature_version="s3v4", s3={"addressing_style": "path"}, request_checksum_calculation="when_required", response_checksum_validation="when_required"),
+        config=Config(**config_kwargs),
     )
 
 
