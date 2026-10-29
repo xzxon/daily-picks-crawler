@@ -7,6 +7,7 @@ import base64
 import hashlib
 import mimetypes
 import os
+import sys
 from pathlib import Path
 
 import boto3
@@ -52,6 +53,7 @@ def main():
     try:
         client = create_client()
     except Exception as exc:
+        print(f"s3 config failed: {type(exc).__name__}: {exc}", file=sys.stderr)
         append_jsonl(log_path, "s3_config", status="error", error=type(exc).__name__)
         return 2
     success = True
@@ -77,6 +79,7 @@ def main():
                 raise RuntimeError("remote size mismatch")
             append_jsonl(log_path, "s3_upload", file=str(path), key=key, size=path.stat().st_size, sha256=file_sha256(path), status="ok")
         except Exception as exc:
+            print(f"s3 upload failed: {path} -> {key}: {type(exc).__name__}: {exc}", file=sys.stderr)
             append_jsonl(log_path, "s3_upload", file=str(path), key=key, status="error", error=type(exc).__name__)
             success = False
     return 0 if success else 1
